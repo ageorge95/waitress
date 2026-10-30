@@ -1,0 +1,86 @@
+name: Build wheel, attach to release, and publish mini-PyPI index
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build-publish:
+    name: Build wheel, release asset, and Pages index
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install build
+
+      - name: Build package (sdist + wheel)
+        run: python -m build
+
+      - name: Upload wheel to the release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare gh-pages checkout
+        run: rm -rf pages
+
+      - name: Checkout gh-pages (if it exists)
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: pages
+        continue-on-error: true
+
+      - name: Initialize gh-pages if missing
+        run: |
+          if [ ! -d pages/.git ]; then
+            mkdir -p pages
+            cd pages
+            git init
+            git checkout -b gh-pages
+          fi
+          cd pages
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Update wheels folder and regenerate simple index
+        run: |
+          mkdir -p pages/wheels pages/simple/waitress
+          cp dist/* pages/wheels/
+          python - <<'PY'
+          import os, glob, hashlib
+          wheels = sorted(os.path.basename(p) for p in glob.glob('pages/wheels/*'))
+          lines = []
+          for name in wheels:
+              h = hashlib.sha256()
+              with open(os.path.join('pages/wheels', name), 'rb') as f:
+                  for chunk in iter(lambda: f.read(8192), b''):
+                      h.update(chunk)
+              lines.append(f'<a href="../../wheels/{name}#sha256={h.hexdigest()}">{name}</a><br>')
+          with open('pages/simple/waitress/index.html', 'w') as f:
+              f.write('<!DOCTYPE html>\n<html><body>\n' + '\n'.join(lines) + '\n</body></html>\n')
+          with open('pages/simple/index.html', 'w') as f:
+              f.write('<!DOCTYPE html>\n<html><body>\n<a href="waitress/">waitress</a>\n</body></html>\n')
+          PY
+          touch pages/.nojekyll
+
+      - name: Commit and push gh-pages
+        run: |
+          cd pages
+          git add -A
+          git commit -m "Update mini-PyPI index for ${GITHUB_REF_NAME}" || echo "nothing to commit"
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git gh-pages
