@@ -20,3 +20,14 @@ UNIX. It supports HTTP/1.0 and HTTP/1.1.
 
 For more information, see the "docs" directory of the Waitress package or visit
 https://docs.pylonsproject.org/projects/waitress/en/latest/
+
+Installing from the mini-PyPI (GitHub Pages)
+--------------------------------------------
+
+Wheels are published to a public mini-PyPI hosted on GitHub Pages (no account
+required)::
+
+    pip install waitress --index-url https://ageorge95.github.io/waitress/simple/
+
+Individual wheels are also attached to each GitHub Release.
+
