@@ -47,13 +47,8 @@ jobs:
 
       - name: Initialize gh-pages if missing
         run: |
-          if [ ! -d pages/.git ]; then
-            mkdir -p pages
-            cd pages
-            git init
-            git checkout -b gh-pages
-          fi
           cd pages
+          git checkout -B gh-pages
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
@@ -83,4 +78,4 @@ jobs:
           cd pages
           git add -A
           git commit -m "Update mini-PyPI index for ${GITHUB_REF_NAME}" || echo "nothing to commit"
-          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git gh-pages
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:gh-pages
